@@ -2567,10 +2567,12 @@ struct LambdaIntroducer {
           ExplicitRange(ExplicitRange) {}
   };
 
+
   SourceRange Range;
   SourceLocation DefaultLoc;
   LambdaCaptureDefault Default;
   SmallVector<LambdaCapture, 4> Captures;
+  SmallVector<DeclarationNameInfo, 4> TransformIdentifiers;
 
   LambdaIntroducer()
     : Default(LCD_None) {}

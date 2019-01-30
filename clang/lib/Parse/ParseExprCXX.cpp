@@ -753,7 +753,25 @@ Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro,
   Intro.Range.setBegin(T.getOpenLocation());
 
   bool first = true;
-
+  while(Tok.is(tok::identifier) && !NextToken().is(tok::equal)){
+    auto Id = Tok.getIdentifierInfo();
+    auto location = ConsumeToken();
+    DeclarationNameInfo TransformationName(DeclarationName(Id),location); 
+    Intro.TransformIdentifiers.push_back(TransformationName);
+    //Sema& oracle = getActions();
+    //LookupResult res(oracle, dni, Sema::LookupNameKind::LookupOrdinaryName);
+    //oracle.LookupName(res, getCurScope());
+    //for(auto candidate : res){
+    //  llvm::outs() << "Found match\n";
+    //  candidate->dump(llvm::outs());
+    //}
+    if(!Tok.is(tok::comma)){
+      return DiagResult(diag::err_expected_comma_or_rsquare);
+    }
+    else{
+      ConsumeToken();
+    }
+  } 
   // Parse capture-default.
   if (Tok.is(tok::amp) &&
       (NextToken().is(tok::comma) || NextToken().is(tok::r_square))) {

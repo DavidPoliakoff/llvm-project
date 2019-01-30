@@ -22,7 +22,8 @@ namespace clang {
 enum LambdaCaptureDefault {
   LCD_None,
   LCD_ByCopy,
-  LCD_ByRef
+  LCD_ByRef,
+  LCD_Transform
 };
 
 /// The different capture forms in a lambda introducer
@@ -35,6 +36,7 @@ enum LambdaCaptureKind {
   LCK_StarThis, /// < Capturing the \c *this object by copy
   LCK_ByCopy, ///< Capturing by copy (a.k.a., by value)
   LCK_ByRef,  ///< Capturing by reference
+  LCK_ByTransform, ///< Capturing by transform
   LCK_VLAType ///< Capturing variable-length array type
 };
 

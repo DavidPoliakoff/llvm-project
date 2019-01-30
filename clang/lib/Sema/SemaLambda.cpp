@@ -1449,6 +1449,8 @@ mapImplicitCaptureStyle(CapturingScopeInfo::ImplicitCaptureStyle ICS) {
   case CapturingScopeInfo::ImpCap_CapturedRegion:
   case CapturingScopeInfo::ImpCap_LambdaByref:
     return LCD_ByRef;
+  case CapturingScopeInfo::ImpCap_LambdaTransform:
+    return LCD_Transform;
   case CapturingScopeInfo::ImpCap_Block:
     llvm_unreachable("block capture in lambda");
   }
@@ -1601,12 +1603,22 @@ ExprResult Sema::BuildLambdaExpr(SourceLocation StartLoc, SourceLocation EndLoc,
         CaptureInits.push_back(From.getInitExpr());
         continue;
       }
+      
       if (From.isVLATypeCapture()) {
         Captures.push_back(
             LambdaCapture(From.getLocation(), IsImplicit, LCK_VLAType));
         CaptureInits.push_back(nullptr);
         continue;
       }
+
+      if(IsImplicit){
+        // TODO DZP: Implement Transform Search
+        Captures.push_back(
+            LambdaCapture(From.getLocation(), IsImplicit,
+                          LCK_ByTransform));
+        CaptureInits.push_back(From.getInitExpr());
+        continue;
+      } 
 
       VarDecl *Var = From.getVariable();
       LambdaCaptureKind Kind = From.isCopyCapture() ? LCK_ByCopy : LCK_ByRef;

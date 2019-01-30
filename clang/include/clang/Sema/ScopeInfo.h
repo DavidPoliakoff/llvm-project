@@ -504,7 +504,7 @@ class Capture {
   // variables of reference type are captured by reference, and other
   // variables are captured by copy.
   enum CaptureKind {
-    Cap_ByCopy, Cap_ByRef, Cap_Block, Cap_VLA
+    Cap_ByCopy, Cap_ByRef, Cap_Block, Cap_VLA, Cap_Transform
   };
   enum {
     IsNestedCapture = 0x1,
@@ -520,6 +520,9 @@ class Capture {
   /// is only required if we are capturing ByVal and the variable's type has
   /// a non-trivial copy constructor.
   llvm::PointerIntPair<void *, 2, CaptureKind> InitExprAndCaptureKind;
+
+  /// TODO DZP: document
+  llvm::PointerIntPair<void *, 2, FunctionTemplateDecl> TransformTemplate;
 
   /// The source location at which the first capture occurred.
   SourceLocation Loc;
@@ -580,7 +583,9 @@ public:
   bool isVLATypeCapture() const {
     return InitExprAndCaptureKind.getInt() == Cap_VLA;
   }
-
+  bool isTransformCapture() const {
+    return InitExprAndCaptureKind.getInt() == Cap_Transform;
+  }
   bool isNested() const {
     return VarAndNestedAndThis.getInt() & IsNestedCapture;
   }
@@ -613,6 +618,9 @@ public:
     assert(!isVLATypeCapture() && "no init expression for type capture");
     return static_cast<Expr *>(InitExprAndCaptureKind.getPointer());
   }
+  FunctionTemplateDecl * getTransformTemplate() const {
+    return static_cast<FunctionTemplateDecl*>(TransformTemplate.getPointer());
+  }
 };
 
 class CapturingScopeInfo : public FunctionScopeInfo {
@@ -621,8 +629,8 @@ protected:
 
 public:
   enum ImplicitCaptureStyle {
-    ImpCap_None, ImpCap_LambdaByval, ImpCap_LambdaByref, ImpCap_Block,
-    ImpCap_CapturedRegion
+    ImpCap_None, ImpCap_LambdaByval, ImpCap_LambdaByref, ImpCap_LambdaTransform, ImpCap_Block,
+    ImpCap_CapturedRegion, 
   };
 
   ImplicitCaptureStyle ImpCaptureStyle;
@@ -842,6 +850,9 @@ public:
   ///  until its instantiation. But we still need to capture it in the
   ///  enclosing lambda if all intervening lambdas can capture the variable.
   llvm::SmallVector<Expr*, 4> PotentiallyCapturingExprs;
+
+  /// Locations of the Transform templates
+  SmallVector<SourceLocation, 4> TransformIdentifiers;
 
   /// Contains all variable-referring-expressions that refer
   ///  to local variables that are usable as constant expressions and
