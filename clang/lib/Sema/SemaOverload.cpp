@@ -10357,7 +10357,6 @@ static void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
                                   unsigned NumArgs,
                                   bool TakingCandidateAddress) {
   FunctionDecl *Fn = Cand->Function;
-
   // Note deleted candidates, but only if they're viable.
   if (Cand->Viable) {
     if (Fn->isDeleted() || S.isFunctionConsideredUnavailable(Fn)) {
@@ -10373,6 +10372,7 @@ static void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
     }
 
     // We don't really have anything else to say about viable candidates.
+
     S.NoteOverloadCandidate(Cand->FoundDecl, Fn);
     return;
   }
@@ -10380,13 +10380,16 @@ static void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
   switch (Cand->FailureKind) {
   case ovl_fail_too_many_arguments:
   case ovl_fail_too_few_arguments:
+
     return DiagnoseArityMismatch(S, Cand, NumArgs);
 
   case ovl_fail_bad_deduction:
+
     return DiagnoseBadDeduction(S, Cand, NumArgs,
                                 TakingCandidateAddress);
 
   case ovl_fail_illegal_constructor: {
+
     S.Diag(Fn->getLocation(), diag::note_ovl_candidate_illegal_constructor)
       << (Fn->getPrimaryTemplate() ? 1 : 0);
     MaybeEmitInheritedConstructorNote(S, Cand->FoundDecl);
@@ -10396,9 +10399,11 @@ static void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
   case ovl_fail_trivial_conversion:
   case ovl_fail_bad_final_conversion:
   case ovl_fail_final_conversion_not_exact:
+
     return S.NoteOverloadCandidate(Cand->FoundDecl, Fn);
 
   case ovl_fail_bad_conversion: {
+
     unsigned I = (Cand->IgnoreObjectArgument ? 1 : 0);
     for (unsigned N = Cand->Conversions.size(); I != N; ++I)
       if (Cand->Conversions[I].isBad())
@@ -10411,15 +10416,19 @@ static void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
   }
 
   case ovl_fail_bad_target:
+
     return DiagnoseBadTarget(S, Cand);
 
   case ovl_fail_enable_if:
+
     return DiagnoseFailedEnableIfAttr(S, Cand);
 
   case ovl_fail_ext_disabled:
+
     return DiagnoseOpenCLExtensionDisabled(S, Cand);
 
   case ovl_fail_inhctor_slice:
+
     // It's generally not interesting to note copy/move constructors here.
     if (cast<CXXConstructorDecl>(Fn)->isCopyOrMoveConstructor())
       return;
@@ -10431,12 +10440,14 @@ static void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
     return;
 
   case ovl_fail_addr_not_available: {
+
     bool Available = checkAddressOfCandidateIsAvailable(S, Cand->Function);
     (void)Available;
     assert(!Available);
     break;
   }
   case ovl_non_default_multiversion_function:
+
     // Do nothing, these should simply be ignored.
     break;
   }
@@ -12049,8 +12060,9 @@ bool Sema::buildOverloadedCallSet(Scope *S, Expr *Fn,
     }
   }
 
-  if (CandidateSet->empty())
+  if (CandidateSet->empty()){
     return false;
+  }
 
   UnbridgedCasts.restore();
   return false;
@@ -12110,10 +12122,11 @@ static ExprResult FinishOverloadedCallExpr(Sema &SemaRef, Scope *S, Expr *Fn,
           return ExprError();
       }
     }
-
-    SemaRef.Diag(Fn->getBeginLoc(), diag::err_ovl_no_viable_function_in_call)
-        << ULE->getName() << Fn->getSourceRange();
-    CandidateSet->NoteCandidates(SemaRef, OCD_AllCandidates, Args);
+    if(SemaRef.diagnosticsEnabled){
+      SemaRef.Diag(Fn->getBeginLoc(), diag::err_ovl_no_viable_function_in_call)
+          << ULE->getName() << Fn->getSourceRange();
+      CandidateSet->NoteCandidates(SemaRef, OCD_AllCandidates, Args);
+    }
     break;
   }
 

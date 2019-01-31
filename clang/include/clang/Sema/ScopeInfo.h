@@ -852,7 +852,7 @@ public:
   llvm::SmallVector<Expr*, 4> PotentiallyCapturingExprs;
 
   /// Locations of the Transform templates
-  SmallVector<SourceLocation, 4> TransformIdentifiers;
+  SmallVector<DeclarationNameInfo, 4> TransformIdentifiers;
 
   /// Contains all variable-referring-expressions that refer
   ///  to local variables that are usable as constant expressions and

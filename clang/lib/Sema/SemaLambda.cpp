@@ -836,6 +836,10 @@ void Sema::ActOnStartOfLambdaDefinition(LambdaIntroducer &Intro,
   LambdaScopeInfo *const LSI = getCurLambda();
   assert(LSI && "LambdaScopeInfo should be on stack!");
 
+  for(auto transform : Intro.TransformIdentifiers ){
+    LSI->TransformIdentifiers.push_back(transform);
+  }
+
   // The lambda-expression's closure type might be dependent even if its
   // semantic context isn't, if it appears within a default argument of a
   // function template.
@@ -1398,6 +1402,48 @@ static void addBlockPointerConversion(Sema &S,
   Class->addDecl(Conversion);
 }
 
+/** TODO DZP: lift IsOverloaded from SemaOverload to somewhere visible */
+static bool SetIsOverloaded(const UnresolvedSetImpl &Functions) {
+  return Functions.size() > 1 ||
+    (Functions.size() == 1 && isa<FunctionTemplateDecl>(*Functions.begin()));
+}
+
+static ExprResult performLambdaVarTransformInitialization(Sema& S, const Capture& Capture, FieldDecl *Field, DeclarationNameInfo& name_info, SourceLocation ImplicitCaptureLoc){
+  assert(Capture.isVariableCapture() && "not a variable capture");
+  auto *Var = Capture.getVariable();
+  ADLResult adl_result;
+  ExprResult perhaps_declref = S.BuildDeclRefExpr(Var,Var->getType(), VK_LValue, Capture.getLocation()); 
+  S.ArgumentDependentLookup(name_info.getName(),ImplicitCaptureLoc,perhaps_declref.get(),adl_result);
+  //llvm::outs () <<"Pre ADL Loop\n";
+  //llvm::outs () <<"Post ADL Loop\n";
+  LookupResult old_res(S,name_info,Sema::LookupNameKind::LookupOrdinaryName);
+  S.LookupName(old_res, S.getCurScope(), /**AllowBuiltinCreation=*/false);
+  auto& Fns = old_res.asUnresolvedSet();
+  auto& Context = S.getASTContext();
+  auto overloaded = SetIsOverloaded(Fns);
+  CXXRecordDecl *NamingClass = nullptr; // lookup ignores member operators 
+  UnresolvedLookupExpr *Fn = UnresolvedLookupExpr::Create(
+      Context, NamingClass, NestedNameSpecifierLoc(), name_info,
+      /*ADL*/ true, overloaded, Fns.begin(), Fns.end());
+  
+  ExprResult perhaps_call;
+  Expr* raw_ref = perhaps_declref.get();
+  //OverloadCandidateSet ocs(ImplicitCaptureLoc,OverloadCandidateSet::CSK_Normal); 
+  OverloadCandidateSet ocs(name_info.getLoc(),OverloadCandidateSet::CSK_Normal); 
+  S.AddFunctionCandidates(Fns,raw_ref, ocs);
+  //bool banzai = S.buildOverloadedCallSet(S.getCurScope(),Fn,Fn,raw_ref,SourceLocation(),&ocs,&perhaps_call);
+  S.diagnosticsEnabled = false;
+  auto maybe_final_call = S.BuildOverloadedCallExpr(S.getCurScope(),Fn,Fn,SourceLocation(),raw_ref,SourceLocation(),nullptr);
+  S.diagnosticsEnabled = true;
+  bool banzai = !maybe_final_call.isInvalid(); 
+  if(banzai){
+    return maybe_final_call;
+  }
+  else{
+    return ExprError();
+  }
+}
+
 static ExprResult performLambdaVarCaptureInitialization(
     Sema &S, const Capture &Capture, FieldDecl *Field,
     SourceLocation ImplicitCaptureLoc, bool IsImplicitCapture) {
@@ -1611,16 +1657,29 @@ ExprResult Sema::BuildLambdaExpr(SourceLocation StartLoc, SourceLocation EndLoc,
         continue;
       }
 
+      VarDecl *Var = From.getVariable();
+
       if(IsImplicit){
-        // TODO DZP: Implement Transform Search
-        Captures.push_back(
-            LambdaCapture(From.getLocation(), IsImplicit,
-                          LCK_ByTransform));
-        CaptureInits.push_back(From.getInitExpr());
-        continue;
+        //Captures.push_back(
+        //    LambdaCapture(From.getLocation(), IsImplicit,
+        //                  LCK_ByTransform));
+        bool found = false;
+        auto transform_candidate = ExprError();
+        for(auto name_info : LSI->TransformIdentifiers){
+          if(!found){
+            transform_candidate = performLambdaVarTransformInitialization(*this, From, *CurField, name_info, CaptureDefaultLoc); 
+            if(!transform_candidate.isInvalid()){
+              found = true;
+            }
+          }
+        } 
+        if(found){
+          Captures.push_back(LambdaCapture(From.getLocation(),IsImplicit, LCK_ByCopy,Var,From.getEllipsisLoc()));
+          CaptureInits.push_back(transform_candidate.get()); 
+          continue;
+        }
       } 
 
-      VarDecl *Var = From.getVariable();
       LambdaCaptureKind Kind = From.isCopyCapture() ? LCK_ByCopy : LCK_ByRef;
       Captures.push_back(LambdaCapture(From.getLocation(), IsImplicit, Kind,
                                        Var, From.getEllipsisLoc()));

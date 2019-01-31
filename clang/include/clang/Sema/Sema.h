@@ -10692,7 +10692,6 @@ private:
 
   mutable IdentifierInfo *Ident_super;
   mutable IdentifierInfo *Ident___float128;
-
   /// Nullability type specifiers.
   IdentifierInfo *Ident__Nonnull = nullptr;
   IdentifierInfo *Ident__Nullable = nullptr;
@@ -10716,6 +10715,8 @@ protected:
 public:
   /// Retrieve the keyword associated
   IdentifierInfo *getNullabilityKeyword(NullabilityKind nullability);
+
+  bool diagnosticsEnabled = true; 
 
   /// The struct behind the CFErrorRef pointer.
   RecordDecl *CFError = nullptr;

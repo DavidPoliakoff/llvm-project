@@ -1318,10 +1318,15 @@ void Sema::EmitCurrentDiagnostic(unsigned DiagID) {
 
 Sema::SemaDiagnosticBuilder
 Sema::Diag(SourceLocation Loc, const PartialDiagnostic& PD) {
+  if(diagnosticsEnabled){  
   SemaDiagnosticBuilder Builder(Diag(Loc, PD.getDiagID()));
   PD.Emit(Builder);
 
   return Builder;
+  }
+  else{
+    return SemaDiagnosticBuilder(Diag(SourceLocation(),PartialDiagnostic(PartialDiagnostic::NullDiagnostic())));
+  }
 }
 
 /// Looks through the macro-expansion chain for the given
